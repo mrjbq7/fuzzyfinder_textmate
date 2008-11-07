@@ -59,6 +59,13 @@ RUBY
     let g:fuzzy_ignore = ""
   endif
 
+  " Configuration option: g:fuzzy_path_display
+  " Set to `abbr` if you want to display the abbreviated path to a file,
+  " `full` to display the full path
+  if !exists('g:fuzzy_path_display')
+    let g:fuzzy_path_display = 'full'
+  endif
+
   " Configuration option: g:fuzzy_enumerating_limit
   " The maximum number of matches to return at a time. Defaults to 200, via the
   " g:FuzzyFinderMode.TextMate.enumerating_limit variable, but using a global variable
@@ -88,11 +95,16 @@ RUBY
 
       text = VIM.evaluate('s:RemovePrompt(a:base,self.prompt)')
       limit = VIM.evaluate('l:limit').to_i
+      path_display = VIM.evaluate("g:fuzzy_path_display")
 
       matches = finder.find(text, limit)
       matches.sort_by { |a| [-a[:score], a[:path]] }.each_with_index do |match, index|
         word = match[:path]
-        abbr = "%2d: %s" % [index+1, match[:abbr]]
+        if path_display == "full"
+          abbr = "%2d: %s" % [index+1, match[:path]]
+        else
+          abbr = "%2d: %s" % [index+1, match[:abbr]]
+        end
         menu = "[%5d]" % [match[:score] * 10000]
         VIM.evaluate("add(result, { 'word' : fnamemodify(#{word.inspect},':~:.'), 'abbr' : #{abbr.inspect}, 'menu' : #{menu.inspect} })")
       end
