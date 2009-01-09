@@ -19,6 +19,8 @@ endfunction
 
 command! -bang -narg=? -complete=file   FuzzyFinderTextMate   call FuzzyFinderTextMateLauncher(<q-args>, len(<q-bang>))
 
+command! FuzzyFinderTextMateRefreshFiles ruby finder.rescan!
+  
 function! InstantiateTextMateMode() "{{{
 ruby << RUBY
   begin
