@@ -5,10 +5,6 @@ if has("ruby")
 " since they can't be called from outside fuzzyfinder.vim
 " ====================================================================================
 
-function! s:GetCurrentTagFiles()
-  return sort(filter(map(tagfiles(), 'fnamemodify(v:val, '':p'')'), 'filereadable(v:val)'))
-endfunction
-
 function! s:ExistsPrompt(line, prompt)
   return  strlen(a:line) >= strlen(a:prompt) && a:line[:strlen(a:prompt) -1] ==# a:prompt
 endfunction
