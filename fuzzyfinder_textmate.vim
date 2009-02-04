@@ -62,7 +62,7 @@ RUBY
   " Set to `abbr` if you want to display the abbreviated path to a file,
   " `full` to display the full path
   if !exists('g:fuzzy_path_display')
-    let g:fuzzy_path_display = 'full'
+    let g:fuzzy_path_display = 'abbr'
   endif
 
   " Configuration option: g:fuzzy_enumerating_limit
