@@ -4,45 +4,9 @@ if has("ruby")
 " COPIED FROM FUZZYFINDER.VIM {{{
 " since they can't be called from outside fuzzyfinder.vim
 " ====================================================================================
+
 function! s:GetCurrentTagFiles()
   return sort(filter(map(tagfiles(), 'fnamemodify(v:val, '':p'')'), 'filereadable(v:val)'))
-endfunction
-
-function! s:HighlightPrompt(prompt, highlight)
-  syntax clear
-  execute printf('syntax match %s /^\V%s/', a:highlight, escape(a:prompt, '\'))
-endfunction
-
-function! s:HighlightError()
-  syntax clear
-  syntax match Error  /^.*$/
-endfunction
-
-function! s:OpenBuffer(nr, mode)
-  execute printf([
-        \   ':%sbuffer',
-        \   ':%ssbuffer',
-        \   ':vertical :%ssbuffer',
-        \   ':tab :%ssbuffer',
-        \ ][a:mode], a:nr)
-endfunction
-
-function! s:OpenFile(path, mode)
-  let nr = bufnr('^' . a:path . '$')
-  if nr > -1
-    call s:OpenBuffer(nr, a:mode)
-  else
-    execute [
-          \   ':edit ',
-          \   ':split ',
-          \   ':vsplit ',
-          \   ':tabedit ',
-          \ ][a:mode] . s:EscapeFilename(a:path)
-  endif
-endfunction
-
-function! s:EscapeFilename(fn)
-  return escape(a:fn, " \t\n*?[{`$%#'\"|!<")
 endfunction
 
 function! s:ExistsPrompt(line, prompt)
@@ -53,13 +17,6 @@ function! s:RemovePrompt(line, prompt)
   return a:line[(s:ExistsPrompt(a:line, a:prompt) ? strlen(a:prompt) : 0):]
 endfunction
 
-function! s:RestorePrompt(line, prompt)
-  let i = 0
-  while i < len(a:prompt) && i < len(a:line) && a:prompt[i] ==# a:line[i]
-    let i += 1
-  endwhile
-  return a:prompt . a:line[i : ]
-endfunction
 " ------------------------------------------------------------------------------------
 " }}}
 " ====================================================================================
@@ -122,32 +79,15 @@ RUBY
 
   let g:FuzzyFinderMode.TextMate = copy(g:FuzzyFinderMode.Base)
 
-  " ================================================================================
-  " This function is copied almost whole-sale from fuzzyfinder.vim. Ideally, I could
-  " used the on_complete callback to more cleanly add the new behavior, but the
-  " TextMate-style completion broke a few of fuzzyfinder.vim's assumptions, and the
-  " only way to patch that up was to override Base.complete...which required me to
-  " copy-and-paste much of the original implementation.
-  "
-  " Ugly. But effective.
-  " ================================================================================
-  function! g:FuzzyFinderMode.TextMate.complete(findstart, base)
-    if a:findstart
-      return 0
-    elseif  !s:ExistsPrompt(a:base,self.prompt) || len(s:RemovePrompt(a:base, self.prompt)) < self.min_length
-      return []
-    endif
-    call s:HighlightPrompt(self.prompt, self.prompt_highlight)
-
-    let result = []
-
+  function! g:FuzzyFinderMode.TextMate.on_complete(base)
     if exists('g:fuzzy_enumerating_limit')
       let l:limit = g:fuzzy_enumerating_limit
     else
       let l:limit = self.enumerating_limit
     endif
-
+    let result = []
     ruby << RUBY
+
       text = VIM.evaluate('s:RemovePrompt(a:base,self.prompt)')
       limit = VIM.evaluate('l:limit').to_i
 
@@ -156,29 +96,16 @@ RUBY
         word = match[:path]
         abbr = "%2d: %s" % [index+1, match[:abbr]]
         menu = "[%5d]" % [match[:score] * 10000]
-        VIM.evaluate("add(result, { 'word' : #{word.inspect}, 'abbr' : #{abbr.inspect}, 'menu' : #{menu.inspect} })")
+        VIM.evaluate("add(result, { 'word' : fnamemodify(#{word.inspect},':~:.'), 'abbr' : #{abbr.inspect}, 'menu' : #{menu.inspect} })")
       end
 RUBY
-
-    if empty(result) || len(result) >= l:limit
-      call s:HighlightError()
-    endif
-
-    if !empty(result)
-      call feedkeys("\<C-p>\<Down>", 'n')
-    endif
-
     return result
   endfunction
 
   function! FuzzyFinderTextMateLauncher(initial_text, partial_matching)
     call g:FuzzyFinderMode.TextMate.launch(a:initial_text, a:partial_matching)
   endfunction
-
-  function! g:FuzzyFinderMode.TextMate.on_open(expr, mode)
-    call s:OpenFile(fnamemodify(a:expr, ':~:.'), a:mode)
-  endfunction
-
+  
   let g:FuzzyFinderOptions.TextMate = copy(g:FuzzyFinderOptions.File)
 endfunction "}}}
 
