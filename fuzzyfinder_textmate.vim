@@ -99,7 +99,7 @@ RUBY
     let result = []
     ruby << RUBY
 
-      text = VIM.evaluate('s:RemovePrompt(a:base,self.prompt)')
+      text = VIM.evaluate('s:RemovePrompt(a:base,self.prompt)') rescue ''
       enumerating_limit = VIM.evaluate('l:enumerating_limit').to_i
       path_display = VIM.evaluate("g:fuzzy_path_display")
       ceiling = VIM.evaluate('g:fuzzy_ceiling').to_i
