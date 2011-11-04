@@ -116,8 +116,7 @@ class FuzzyFileFinder
     # expand any paths with ~
     @roots = directories.map { |d| File.expand_path(d) }.select { |d| File.directory?(d) }.uniq
 
-    @shared_prefix = determine_shared_prefix
-    @shared_prefix_re = Regexp.new("^#{Regexp.escape(shared_prefix)}" + (shared_prefix.empty? ? "" : "/"))
+    @shared_prefix = determine_shared_prefix.length
 
     @files = []
     @cache = {}
@@ -229,7 +228,7 @@ class FuzzyFileFinder
 
         if File.directory?(full) && File.readable?(full)
           follow_tree(full)
-        elsif !ignore?(full.sub(@shared_prefix_re, ""))
+        elsif !ignore?(full[@shared_prefix..-1])
           files.push(FileSystemEntry.new(directory, entry, full))
           raise TooManyEntries if files.length > ceiling
         end
@@ -310,7 +309,7 @@ class FuzzyFileFinder
       return path_matches[path] if path_matches.key?(path)
 
       name_with_slash = path + "/" # add a trailing slash for matching the prefix
-      matchable_name = name_with_slash.sub(@shared_prefix_re, "")
+      matchable_name = name_with_slash[@shared_prefix..-1]
       matchable_name.chop! # kill the trailing slash
 
       if path_regex
