@@ -117,6 +117,9 @@ class FuzzyFileFinder
     @roots = directories.map { |d| File.expand_path(d) }.select { |d| File.directory?(d) }.uniq
 
     @shared_prefix = determine_shared_prefix.length
+    if @shared_prefix > 0
+      @shared_prefix += 1
+    end
 
     @files = []
     @cache = {}
