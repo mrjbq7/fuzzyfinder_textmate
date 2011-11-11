@@ -101,6 +101,7 @@ class FuzzyFileFinder
 
   # The list of glob patterns to ignore.
   attr_reader :ignores
+  attr_reader :ignores_re
 
   # The class used to output the highlighted text in the desired format.
   attr_reader :highlighted_match_class
@@ -125,7 +126,14 @@ class FuzzyFileFinder
     @cache = {}
     @ceiling = ceiling
 
-    @ignores = Array(ignores)
+    # change ignores to a regexp
+    if ignores != nil
+      @ignores = split_globs(ignores)
+      @ignores_re = Regexp.union(@ignores.map {|s| glob_to_pattern(s)})
+    else
+      @ignores = []
+      @ignores_re = /.*/
+    end
 
     @highlighted_match_class = highlighter
 
@@ -231,17 +239,11 @@ class FuzzyFileFinder
 
         if File.directory?(full) && File.readable?(full)
           follow_tree(full)
-        elsif !ignore?(full[@shared_prefix..-1])
+        elsif !ignores_re.match(full[@shared_prefix..-1])
           files.push(FileSystemEntry.new(directory, entry, full))
           raise TooManyEntries if files.length > ceiling
         end
       end
-    end
-
-    # Returns +true+ if the given name matches any of the ignore
-    # patterns.
-    def ignore?(name)
-      ignores.any? { |pattern| File.fnmatch(pattern, name) }
     end
 
     # Takes the given pattern string "foo" and converts it to a new
@@ -255,6 +257,73 @@ class FuzzyFileFinder
         regex << "([^/]*?)" if regex.length > 0
         regex << "(" << Regexp.escape(character) << ")"
       end
+    end
+
+    # Takes a string of globs and splits them into an array
+    def split_globs(s)
+      globs = []
+      start = 0
+      offset = 0
+      braces = 0
+      loop {
+        i = s.index(/[:,{}]/, offset)
+
+        if i == nil
+          globs.push(s[start..-1])
+          break
+        end
+
+        if s[i] == "{"
+          braces += 1
+        elsif s[i] == "}"
+          braces -= 1
+        end
+
+        offset = i + 1
+
+        if braces == 0 && (s[i] == ":" || s[i] == ",")
+
+          if start < (i-1)
+            globs.push(s[start..i-1])
+          end
+
+          start = offset
+        end
+      }
+      globs
+    end
+
+    # Takes a glob and turns it into a regexp pattern.
+    def glob_to_pattern(s)
+      r = ['^']
+      curlies = 0
+      escaped = false
+      s.each_char {|c|
+        if ".()|+^$@%".include?(c)
+          r.push("\\#{c}")
+        elsif c == '*'
+          r.push(escaped ? "\\*" : ".*")
+        elsif c == '?'
+          r.push(escaped ? "\\." : ".")
+        elsif c == '{'
+          r.push(escaped ? "\\{" : "(")
+          curlies += 1 unless escaped
+        elsif c == '}' && curlies > 0
+          r.push(escaped ? "\\}" : ")")
+          curlies -= 1 unless escaped
+        elsif c == ',' && curlies > 0
+          r.push(escaped ? "," : "|")
+        elsif c == '\\'
+          r.push("\\\\") if escaped
+          escaped = !escaped
+          next
+        else
+          r.push(c)
+        end
+        escaped = false
+      }
+      r.push('$')
+      Regexp.new(r * "")
     end
 
     # Given a MatchData object +match+ and a number of "inside"
