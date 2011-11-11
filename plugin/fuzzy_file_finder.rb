@@ -101,7 +101,6 @@ class FuzzyFileFinder
 
   # The list of glob patterns to ignore.
   attr_reader :ignores
-  attr_reader :ignores_re
 
   # The class used to output the highlighted text in the desired format.
   attr_reader :highlighted_match_class
@@ -128,11 +127,10 @@ class FuzzyFileFinder
 
     # change ignores to a regexp
     if ignores != nil
-      @ignores = split_globs(ignores)
-      @ignores_re = Regexp.union(@ignores.map {|s| glob_to_pattern(s)})
+      globs = split_globs(ignores)
+      @ignores = Regexp.union(globs.map {|s| glob_to_pattern(s)})
     else
-      @ignores = []
-      @ignores_re = /.*/
+      @ignores = /.*/
     end
 
     @highlighted_match_class = highlighter
@@ -239,7 +237,7 @@ class FuzzyFileFinder
 
         if File.directory?(full) && File.readable?(full)
           follow_tree(full)
-        elsif !ignores_re.match(full[@shared_prefix..-1])
+        elsif !@ignores.match(full[@shared_prefix..-1])
           files.push(FileSystemEntry.new(directory, entry, full))
           raise TooManyEntries if files.length > ceiling
         end
@@ -273,15 +271,16 @@ class FuzzyFileFinder
           break
         end
 
-        if s[i] == "{"
+        if s[i].ord == '{'[0].ord
           braces += 1
-        elsif s[i] == "}"
+        elsif s[i].ord == '}'[0].ord
           braces -= 1
         end
 
         offset = i + 1
 
-        if braces == 0 && (s[i] == ":" || s[i] == ",")
+        if braces == 0 &&
+          (s[i].ord == ":"[0].ord || s[i].ord == ","[0].ord)
 
           if start < (i-1)
             globs.push(s[start..i-1])
